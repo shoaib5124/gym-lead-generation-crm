@@ -7,6 +7,7 @@ export const FreeTrialForm: React.FC = () => {
   const [formData, setFormData] = useState<FreeTrialFormData>({
     fullName: '',
     email: '',
+    phone:'' ,
     fitnessGoal: '',
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -27,6 +28,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       body: JSON.stringify({
         name: formData.fullName,
         email: formData.email,
+        phone: formData.phone,
         purpose: formData.fitnessGoal,
       }),
     });
@@ -47,7 +49,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 };
 
   const handleReset = () => {
-    setFormData({ fullName: '', email: '', fitnessGoal: '' });
+    setFormData({ fullName: '', email: '', phone:'',fitnessGoal:''});
     setIsSubmitted(false);
   };
 
@@ -143,6 +145,23 @@ const handleSubmit = async (e: React.FormEvent) => {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 placeholder="john@example.com"
+                className="w-full bg-black/50 border border-white/10 px-4 py-3.5 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-lime-400 transition-colors"
+              />
+              <label
+               htmlFor="email-address"
+              className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-zinc-400"
+              >
+                Phone
+              </label>
+              <input
+               id="phone"
+                type="phone"
+                required
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+                placeholder="+923260382216"
                 className="w-full bg-black/50 border border-white/10 px-4 py-3.5 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-lime-400 transition-colors"
               />
             </div>

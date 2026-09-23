@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import LeadsHeader from "@/app/components/leads/Header";        
 import LeadsToolBar from "@/app/components/leads/LeadsToolBar";        

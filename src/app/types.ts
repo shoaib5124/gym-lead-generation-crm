@@ -22,6 +22,7 @@ export interface StatItem {
 export interface FreeTrialFormData {
   fullName: string;
   email: string;
+  phone: string;
   fitnessGoal: string;
 }
 export interface Lead {
