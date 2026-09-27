@@ -1,7 +1,7 @@
+
 "use client";
-import FreeTrial from "@/models/freeTrial";
+
 import Link from "next/link";
-import { NextResponse } from "next/server";
 import { use, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ interface Lead {
   createdAt: string;
   updatedAt: string;
 }
+
 type PageState =
   | "loading"
   | "success"
@@ -31,12 +32,6 @@ type LeadStatus =
   | "trial-booked"
   | "joined";
 
-type ActivityType =
-  | "created"
-  | "status_changed"
-  | "note_added"
-  | "followup_created";
-
 interface Note {
   id: string;
   text: string;
@@ -48,13 +43,6 @@ interface FollowUp {
   date: string;
   time: string;
   reason: string;
-}
-
-interface Activity {
-  id: string;
-  type: ActivityType;
-  description: string;
-  createdAt: string;
 }
 
 interface LeadDetailsPageProps {
@@ -82,28 +70,11 @@ const STATUS_STYLES: Record<LeadStatus, string> = {
   new: "border-lime-400/20 bg-lime-400/10 text-lime-300",
   contacted: "border-blue-400/20 bg-blue-400/10 text-blue-300",
   interested: "border-purple-400/20 bg-purple-400/10 text-purple-300",
-  Notresponed: "border-blue-400/20 bg-lime-400  text-purple-300",
+  Notresponed: "border-blue-400/20 bg-lime-400 text-purple-300",
   "trial-booked":
     "border-orange-400/20 bg-orange-400/10 text-orange-300",
   joined: "border-lime-400 bg-lime-400 text-black",
 };
-const initialNotes: Note[] = [
-  {
-    id: "note-1",
-    text: "Ali prefers morning workouts and has a busy schedule on weekends.",
-    author: "Admin",
-    createdAt: "2026-09-19T11:20:00",
-  },
-];
-
-const initialActivities: Activity[] = [
-  {
-    id: "activity-1",
-    type: "created",
-    description: "Lead submitted the free trial form.",
-    createdAt: "2026-09-19T10:24:00",
-  },
-];
 
 const formatDate = (date: string) =>
   new Date(date).toLocaleDateString("en-US", {
@@ -128,80 +99,56 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-const getActivityIcon = (type: ActivityType) => {
-  switch (type) {
-    case "created":
-      return "user-plus";
-    case "status_changed":
-      return "arrow-right";
-    case "note_added":
-      return "message-square";
-    case "followup_created":
-      return "calendar-clock";
-    default:
-      return "circle";
-  }
-};
-
 export default function LeadDetailsPage({
   params,
 }: LeadDetailsPageProps) {
   const { id } = use(params);
 
+  console.log("LeadDetailsPage is running");
+
+  const [deletingNoteId, setDeletingNoteId] =
+    useState<string | null>(null);
+
   const [lead, setLead] = useState<Lead | null>(null);
+
   const [statusLoading, setstatusLoading] = useState(false);
-  const [notes, setNotes] = useState<Note[]>(initialNotes);
-  const [activities, setActivities] =
-    useState<Activity[]>(initialActivities);
+
+  const [notes, setNotes] = useState<Note[]>([]);
 
   const [followUp, setFollowUp] = useState<FollowUp | null>(null);
 
-  const [pageState, setPageState] = useState<PageState>("loading");
+  const [pageState, setPageState] =
+    useState<PageState>("loading");
+
   const [delLoading, setdelLoading] = useState(false);
+
   const [error, setError] = useState("");
 
   const [noteText, setNoteText] = useState("");
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(
-    null
-  );
+
+  const [editingNoteId, setEditingNoteId] =
+    useState<string | null>(null);
 
   const [followUpDate, setFollowUpDate] = useState("");
   const [followUpTime, setFollowUpTime] = useState("");
   const [followUpReason, setFollowUpReason] = useState("");
 
-  const [showFollowUpForm, setShowFollowUpForm] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showFollowUpForm, setShowFollowUpForm] =
+    useState(false);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] =
+    useState(false);
 
   const [copied, setCopied] = useState(false);
-  const sortedActivities = useMemo(
-    () =>
-      [...activities].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
-      ),
-    [activities]
-  );
 
-  const addActivity = (
-    type: ActivityType,
-    description: string
-  ) => {
-    setActivities((previous) => [
-      {
-        id: crypto.randomUUID(),
-        type,
-        description,
-        createdAt: new Date().toISOString(),
-      },
-      ...previous,
-    ]);
-  };
+  //////////////////////// Copy Email ////////////////////////
+
   const handleCopyEmail = async () => {
     if (!lead) return;
 
     try {
       await navigator.clipboard.writeText(lead.email);
+
       setCopied(true);
 
       setTimeout(() => setCopied(false), 2000);
@@ -210,55 +157,43 @@ export default function LeadDetailsPage({
     }
   };
 
-  const handleSaveNote = () => {
-    if (!noteText.trim()) return;
+  //////////////////////// Add Note API ////////////////////////
 
-    if (editingNoteId) {
-      setNotes((previous) =>
-        previous.map((note) =>
-          note.id === editingNoteId
-            ? { ...note, text: noteText }
-            : note
-        )
+  const handleSaveNote = async (id: string) => {
+    try {
+      const response = await fetch(
+        `/api/freeTrial/${id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ noteText }),
+        }
       );
 
-      setEditingNoteId(null);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error("Failed to add note");
+      }
+
       setNoteText("");
-      return;
-    }
 
-    const newNote: Note = {
-      id: crypto.randomUUID(),
-      text: noteText.trim(),
-      author: "Admin",
-      createdAt: new Date().toISOString(),
-    };
-
-    setNotes((previous) => [newNote, ...previous]);
-
-    addActivity("note_added", "A new note was added.");
-
-    setNoteText("");
-  };
-
-  const handleEditNote = (note: Note) => {
-    setEditingNoteId(note.id);
-    setNoteText(note.text);
-  };
-
-  const handleDeleteNote = (noteId: string) => {
-    setNotes((previous) =>
-      previous.filter((note) => note.id !== noteId)
-    );
-
-    if (editingNoteId === noteId) {
-      setEditingNoteId(null);
-      setNoteText("");
+      setNotes(data.lead.notes);
+    } catch (error) {
+      console.error("Error while adding Note", error);
     }
   };
+
+  //////////////////////// Schedule Follow Up ////////////////////////
 
   const handleScheduleFollowUp = () => {
-    if (!followUpDate || !followUpTime || !followUpReason.trim()) {
+    if (
+      !followUpDate ||
+      !followUpTime ||
+      !followUpReason.trim()
+    ) {
       setError("Please complete all follow-up fields.");
       return;
     }
@@ -269,102 +204,209 @@ export default function LeadDetailsPage({
       reason: followUpReason.trim(),
     });
 
-    addActivity(
-      "followup_created",
-      `Follow-up scheduled for ${followUpDate} at ${followUpTime}.`
-    );
-
     setShowFollowUpForm(false);
+
     setError("");
   };
-//////////////////////// Update Lead Staus API Call/////////////////////////////////////
-const updateLeadStatus = async(
-  id: string,
-  status: LeadStatus,
-)=>{
- try{
-  const response = await fetch(`/api/freeTrial/${id}`,
-    {method:"PATCH",
-     headers: {
-          "content-type": "application/json"
-         }, 
-         body: JSON.stringify(
-          {status}
-         )
-    }
-  )
 
-  const data = await response.json();
-     
-  if (!response.ok){
-    throw new Error(data.message)
-  }
-  console.log(data)
-  return data.lead;
+  //////////////////////// Delete Note API ////////////////////////
 
- }
- catch(error){
-  console.error("error accured", error)
- }
-}
-//////////////////////// Fetching lead data build/////////////////////////////////////
-async function fetchLeadById(id: string) {
-  try{
-    
-    const response = await fetch(`/api/freeTrial/${id}`);
+  const handleDeleteNote = async (
+    leadId: string,
+    noteId: string
+  ) => {
+    try {
+      setDeletingNoteId(noteId);
 
-    if(response.status == 404){
-      setPageState("not-found")
-      return;
-    }
-    if(!response.ok){
-    
-    throw new Error("Failed to fetch lead")
-  }
-    const data = await response.json();
-    setLead(data.lead)
-    setPageState("success")
-
-  }
-  catch(error){
-    console.error("Could not get lead", error);
-      setPageState("error")
-  } 
-}
-useEffect(()=>{
-  fetchLeadById(id);
-},[id])
-///////////////////////////////// Call Delete Api ///////////////////////////////////
-  const handleDeleteLead = async (id: string) => {
-    // call delete API
-    try{
-      setdelLoading(true);
-      const response = await fetch(`/api/freeTrial/${id}`,
-        {method: "DELETE"}
-        
+      const response = await fetch(
+        `/api/freeTrial/${id}/notes/${noteId}`,
+        {
+          method: "DELETE",
+        }
       );
-      const data = await response.json();
-      setLead(null)
-      setPageState("deleted")
-   
 
-    if(!response.ok){
-      throw new Error(data.message  || "Failed to delete lead" );  
-      }  
-   
-  }
-  catch(error){
-   console.error("DeleteError", error);
-  }finally{
-    setdelLoading(false)
-  }
+      const data = await response.json();
+
+      console.log(noteId);
+
+      if (!response.ok) {
+        toast.error(
+          data.message ||
+            "Failed to delete note. Please try again."
+        );
+
+        return;
+      }
+
+      setNotes((previousNotes) =>
+        previousNotes.filter(
+          (note) => note._id !== noteId
+        )
+      );
+
+      toast.success(
+        data.message || "Note deleted successfully."
+      );
+    } catch (error) {
+      console.error("Delete note error:", error);
+
+      toast.error(
+        "Unable to connect to the server. Please try again."
+      );
+    } finally {
+      setDeletingNoteId(null);
+    }
   };
-//////////////////////// Return Sekelten if loading is true ////////////////////////////
-  if (pageState== "loading") {
+
+  //////////////////////// Edit Note API ////////////////////////
+
+  const handleUpdateNote = async (
+    leadId: string,
+    noteId: string,
+    newText: string
+  ) => {
+    try {
+      const response = await fetch(
+        `/api/freeTrial/${id}/notes/${noteId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: newText,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Failed to update note"
+        );
+      }
+
+      console.log("Updated lead:", data.updatedLead);
+
+      setNotes(data.updatedLead.notes);
+
+      setEditingNoteId(null);
+
+      setNoteText("");
+    } catch (error) {
+      console.error("Failed to update note:", error);
+    }
+  };
+
+  //////////////////////// Update Lead Status API ////////////////////////
+
+  const updateLeadStatus = async (
+    id: string,
+    status?: LeadStatus
+  ) => {
+    try {
+      const response = await fetch(
+        `/api/freeTrial/${id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ status }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message);
+      }
+
+      console.log(data);
+
+      return data.lead;
+    } catch (error) {
+      console.error("error accured", error);
+    }
+  };
+
+  //////////////////////// Fetch Lead By ID ////////////////////////
+
+  async function fetchLeadById(id: string) {
+    try {
+      const response = await fetch(
+        `/api/freeTrial/${id}`
+      );
+
+      if (response.status === 404) {
+        setPageState("not-found");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch lead");
+      }
+
+      const data = await response.json();
+
+      setLead(data.lead);
+
+      setNotes(data.lead.notes);
+
+      console.log(data.lead);
+
+      setPageState("success");
+    } catch (error) {
+      console.error("Could not get lead", error);
+
+      setPageState("error");
+    }
+  }
+
+  useEffect(() => {
+    fetchLeadById(id);
+  }, [id]);
+
+  //////////////////////// Delete Lead API ////////////////////////
+
+  const handleDeleteLead = async (id: string) => {
+    try {
+      setdelLoading(true);
+
+      const response = await fetch(
+        `/api/freeTrial/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to delete lead"
+        );
+      }
+
+      setLead(null);
+
+      setPageState("deleted");
+    } catch (error) {
+      console.error("DeleteError", error);
+    } finally {
+      setdelLoading(false);
+    }
+  };
+
+  //////////////////////// Loading State ////////////////////////
+
+  if (pageState === "loading") {
     return (
       <div className="min-h-screen bg-[#0A0A0A] p-4 text-white sm:p-6 lg:p-8">
         <div className="mx-auto max-w-7xl animate-pulse space-y-6">
           <div className="h-5 w-32 rounded bg-zinc-800" />
+
           <div className="h-36 rounded-2xl bg-zinc-900" />
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -378,7 +420,9 @@ useEffect(()=>{
     );
   }
 
-  if (pageState=="error") {
+  //////////////////////// Error State ////////////////////////
+
+  if (pageState === "error") {
     return (
       <div className="min-h-screen bg-[#0A0A0A] p-6 text-white">
         <div className="mx-auto max-w-2xl text-center">
@@ -386,7 +430,9 @@ useEffect(()=>{
             Something went wrong
           </h2>
 
-          <p className="mt-2 text-sm text-zinc-500">{error}</p>
+          <p className="mt-2 text-sm text-zinc-500">
+            {error}
+          </p>
 
           <Link
             href="/dashboard/leads"
@@ -399,7 +445,9 @@ useEffect(()=>{
     );
   }
 
-  if (pageState =="not-found") {
+  //////////////////////// Not Found State ////////////////////////
+
+  if (pageState === "not-found") {
     return (
       <div className="min-h-screen bg-[#0A0A0A] p-4 text-white sm:p-6 lg:p-8">
         <div className="mx-auto max-w-2xl">
@@ -434,28 +482,47 @@ useEffect(()=>{
       </div>
     );
   }
+
+  //////////////////////// Deleted State ////////////////////////
+
   if (pageState === "deleted") {
-     return (
-       <div className="min-h-screen bg-[#0A0A0A] p-4 text-white sm:p-6 lg:p-8"> <div 
-         className="mx-auto max-w-2xl">
-          <Link href="/dashboard/Leads" className="text-sm text-zinc-400 hover:text-lime-400" > ←  Back to Leads
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] p-4 text-white sm:p-6 lg:p-8">
+        <div className="mx-auto max-w-2xl">
+          <Link
+            href="/dashboard/Leads"
+            className="text-sm text-zinc-400 hover:text-lime-400"
+          >
+            ← Back to Leads
           </Link>
-          <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center"> 
-         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-lime-400/10 text-lime-400"> 
-            ✓ 
-         </div> 
-         <h2 className="mt-4 text-lg font-bold">
-           Lead deleted successfully 
-         </h2>
-         <p className="mt-2 text-sm text-zinc-500">
-           This lead has been successfully removed from your CRM. 
-         </p> 
-         <Link href="/dashboard/Leads" className="mt-6 inline-flex rounded-lg bg-lime-400 px-4 py-2.5 text-sm font-bold text-black" >
-           Back to Leads 
-          </Link> 
+
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-lime-400/10 text-lime-400">
+              ✓
+            </div>
+
+            <h2 className="mt-4 text-lg font-bold">
+              Lead deleted successfully
+            </h2>
+
+            <p className="mt-2 text-sm text-zinc-500">
+              This lead has been successfully removed from your CRM.
+            </p>
+
+            <Link
+              href="/dashboard/Leads"
+              className="mt-6 inline-flex rounded-lg bg-lime-400 px-4 py-2.5 text-sm font-bold text-black"
+            >
+              Back to Leads
+            </Link>
+          </div>
         </div>
       </div>
-    </div> ); }
+    );
+  }
+
+  //////////////////////// Main Page ////////////////////////
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] p-4 text-white sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -485,7 +552,6 @@ useEffect(()=>{
         {/* LEAD PROFILE HEADER */}
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-
           <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
 
             <div className="flex min-w-0 items-center gap-4">
@@ -498,6 +564,7 @@ useEffect(()=>{
               </div>
 
               <div className="min-w-0">
+
                 <h2 className="truncate text-xl font-bold text-white sm:text-2xl">
                   {lead.name}
                 </h2>
@@ -513,45 +580,61 @@ useEffect(()=>{
                     Created {formatDate(lead.createdAt)}
                   </span>
                 </div>
-              </div>
 
+              </div>
             </div>
 
-            <div className=" flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative  w-32">
-                 {statusLoading ? (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-lime-400" />
-                    </div>
-                ):
-                (<select
-                  value={lead?.status}
-                  onChange={ async (event) =>{
-                  try{ 
-                      setstatusLoading(true)
-                      const newStatus = event.target.value as LeadStatus;
-                      const updatedLead = await updateLeadStatus(id,newStatus);
-                      if (updatedLead){
-                      setLead(updatedLead);
-                      toast.success("Lead status updated successfully");
-                  }
-                  }finally{
-                    setstatusLoading(false)
-                  }
-                  
-                  }
-                }
-                  aria-label="Change lead status"
-                  className="min-h-11 rounded-xl border border-white/10 bg-[#111111] px-3 text-sm font-semibold text-zinc-200 outline-none transition focus:border-lime-400/60 focus:ring-2 focus:ring-lime-400/20"
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>
-                      {STATUS_LABELS[status]}
-                    </option>
-                  ))}
-                </select>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+
+              <div className="relative w-32">
+
+                {statusLoading ? (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-lime-400" />
+                  </div>
+                ) : (
+                  <select
+                    value={lead?.status}
+                    onChange={async (event) => {
+                      try {
+                        setstatusLoading(true);
+
+                        const newStatus =
+                          event.target.value as LeadStatus;
+
+                        const updatedLead =
+                          await updateLeadStatus(
+                            id,
+                            newStatus
+                          );
+
+                        if (updatedLead) {
+                          setLead(updatedLead);
+
+                          toast.success(
+                            "Lead status updated successfully"
+                          );
+                        }
+                      } finally {
+                        setstatusLoading(false);
+                      }
+                    }}
+                    aria-label="Change lead status"
+                    className="min-h-11 rounded-xl border border-white/10 bg-[#111111] px-3 text-sm font-semibold text-zinc-200 outline-none transition focus:border-lime-400/60 focus:ring-2 focus:ring-lime-400/20"
+                  >
+                    {STATUS_OPTIONS.map((status) => (
+                      <option
+                        key={status}
+                        value={status}
+                      >
+                        {STATUS_LABELS[status]}
+                      </option>
+                    ))}
+                  </select>
                 )}
+
               </div>
+
               <div className="flex flex-wrap gap-2">
 
                 <a
@@ -579,11 +662,8 @@ useEffect(()=>{
                 </button>
 
               </div>
-
             </div>
-
           </div>
-
         </section>
 
         {/* ERROR MESSAGE */}
@@ -618,6 +698,7 @@ useEffect(()=>{
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
 
               <div className="flex items-center justify-between gap-3">
+
                 <h3 className="text-base font-bold text-white">
                   Contact Information
                 </h3>
@@ -625,6 +706,7 @@ useEffect(()=>{
                 <span className="text-xs text-zinc-600">
                   Profile
                 </span>
+
               </div>
 
               <div className="mt-5 space-y-4">
@@ -640,11 +722,13 @@ useEffect(()=>{
                 </div>
 
                 <div>
+
                   <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
                     Email
                   </p>
 
                   <div className="mt-1 flex flex-wrap items-center gap-2">
+
                     <p className="break-all text-sm text-zinc-200">
                       {lead.email}
                     </p>
@@ -656,10 +740,12 @@ useEffect(()=>{
                     >
                       {copied ? "Copied" : "Copy"}
                     </button>
+
                   </div>
                 </div>
 
                 <div>
+
                   <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
                     Phone
                   </p>
@@ -670,21 +756,13 @@ useEffect(()=>{
                   >
                     {lead.phone}
                   </a>
+
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
 
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-                      Lead Source
-                    </p>
 
-                    <p className="mt-1 text-sm text-zinc-200">
-                      {lead.source}
-                    </p>
-                  </div>
-
-                  <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
                       Created
                     </p>
@@ -692,6 +770,7 @@ useEffect(()=>{
                     <p className="mt-1 text-sm text-zinc-200">
                       {formatDate(lead.createdAt)}
                     </p>
+
                   </div>
 
                 </div>
@@ -719,13 +798,16 @@ useEffect(()=>{
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
 
               <div className="flex items-center justify-between gap-3">
+
                 <h3 className="text-base font-bold text-white">
                   Notes
                 </h3>
 
                 <span className="text-xs text-zinc-500">
-                  {notes.length} {notes.length === 1 ? "note" : "notes"}
+                  {notes.length}{" "}
+                  {notes.length === 1 ? "note" : "notes"}
                 </span>
+
               </div>
 
               <div className="mt-5">
@@ -734,13 +816,17 @@ useEffect(()=>{
                   htmlFor="lead-note"
                   className="text-xs font-semibold uppercase tracking-wider text-zinc-500"
                 >
-                  {editingNoteId ? "Edit Note" : "Add Note"}
+                  {editingNoteId
+                    ? "Edit Note"
+                    : "Add Note"}
                 </label>
 
                 <textarea
                   id="lead-note"
                   value={noteText}
-                  onChange={(event) => setNoteText(event.target.value)}
+                  onChange={(event) =>
+                    setNoteText(event.target.value)
+                  }
                   placeholder="Write a note about your conversation..."
                   rows={4}
                   className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-[#0A0A0A] p-3 text-sm leading-6 text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-lime-400/60 focus:ring-2 focus:ring-lime-400/20"
@@ -750,11 +836,23 @@ useEffect(()=>{
 
                   <button
                     type="button"
-                    onClick={handleSaveNote}
+                    onClick={async () => {
+                      if (editingNoteId) {
+                        handleUpdateNote(
+                          id,
+                          editingNoteId,
+                          noteText
+                        );
+                      } else {
+                        handleSaveNote(id);
+                      }
+                    }}
                     disabled={!noteText.trim()}
                     className="min-h-11 rounded-xl bg-lime-400 px-4 text-sm font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {editingNoteId ? "Save Changes" : "Add Note"}
+                    {editingNoteId
+                      ? "Save Changes"
+                      : "Add Note"}
                   </button>
 
                   {editingNoteId && (
@@ -778,13 +876,11 @@ useEffect(()=>{
 
                 {notes.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-white/10 p-6 text-center">
+
                     <p className="text-sm text-zinc-500">
                       No notes yet.
                     </p>
 
-                    <p className="mt-1 text-xs text-zinc-600">
-                      Add your first note to track the conversation.
-                    </p>
                   </div>
                 ) : (
                   notes.map((note) => (
@@ -797,21 +893,18 @@ useEffect(()=>{
 
                         <div className="flex min-w-0 items-center gap-3">
 
-                          <div
-                            aria-hidden="true"
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime-400/10 text-xs font-bold text-lime-300"
-                          >
-                            {getInitials(note.author)}
-                          </div>
-
                           <div className="min-w-0">
+
                             <p className="text-sm font-semibold text-zinc-200">
                               {note.author}
                             </p>
 
                             <p className="text-xs text-zinc-600">
-                              {formatDateTime(note.createdAt)}
+                              {formatDateTime(
+                                note.createdAt
+                              )}
                             </p>
+
                           </div>
 
                         </div>
@@ -820,7 +913,13 @@ useEffect(()=>{
 
                           <button
                             type="button"
-                            onClick={() => handleEditNote(note)}
+                            onClick={() => {
+                              setEditingNoteId(
+                                note._id
+                              );
+
+                              setNoteText(note.text);
+                            }}
                             className="text-xs font-semibold text-zinc-500 hover:text-lime-300"
                           >
                             Edit
@@ -828,10 +927,21 @@ useEffect(()=>{
 
                           <button
                             type="button"
-                            onClick={() => handleDeleteNote(note.id)}
-                            className="text-xs font-semibold text-zinc-500 hover:text-red-400"
+                            onClick={() =>
+                              handleDeleteNote(
+                                id,
+                                note._id
+                              )
+                            }
+                            disabled={
+                              deletingNoteId ===
+                              note._id
+                            }
+                            className="text-xs font-semibold text-zinc-500 hover:text-red-400 disabled:opacity-50"
                           >
-                            Delete
+                            {deletingNoteId === note._id
+                              ? "Deleting..."
+                              : "Delete"}
                           </button>
 
                         </div>
@@ -849,7 +959,6 @@ useEffect(()=>{
               </div>
 
             </section>
-
           </div>
 
           {/* RIGHT COLUMN */}
@@ -861,6 +970,7 @@ useEffect(()=>{
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
 
               <div className="flex items-center justify-between gap-3">
+
                 <h3 className="text-base font-bold text-white">
                   Lead Status
                 </h3>
@@ -870,6 +980,7 @@ useEffect(()=>{
                 >
                   {STATUS_LABELS[lead.status]}
                 </span>
+
               </div>
 
               <div className="mt-5 space-y-2">
@@ -880,38 +991,55 @@ useEffect(()=>{
                 >
                   Update Status
                 </label>
+
                 <div className="relative">
+
                   {statusLoading ? (
                     <div className="flex h-10 w-full items-center justify-center rounded-lg border border-zinc-700">
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-lime-400" />
-                    </div>):
-                    (<select
+                    </div>
+                  ) : (
+                    <select
                       id="lead-status"
                       value={lead?.status}
-                      onChange={async (event) =>{
-                      try{
-                        setstatusLoading(true);
-                        const newStatus = event.target.value as LeadStatus;
-                        const updatedLead = await updateLeadStatus(id, newStatus)
-                        if(updatedLead){
-                        setLead(updatedLead);
-                          toast.success("Lead status updated successfully");
+                      onChange={async (event) => {
+                        try {
+                          setstatusLoading(true);
+
+                          const newStatus =
+                            event.target.value as LeadStatus;
+
+                          const updatedLead =
+                            await updateLeadStatus(
+                              id,
+                              newStatus
+                            );
+
+                          if (updatedLead) {
+                            setLead(updatedLead);
+
+                            toast.success(
+                              "Lead status updated successfully"
+                            );
+                          }
+                        } finally {
+                          setstatusLoading(false);
                         }
-                      }finally{
-                        setstatusLoading(false)
-                      }
                       }}
                       className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3 text-sm text-zinc-200 outline-none focus:border-lime-400/60 focus:ring-2 focus:ring-lime-400/20"
-                      >
+                    >
                       {STATUS_OPTIONS.map((status) => (
-                        <option key={status} value={status}>
+                        <option
+                          key={status}
+                          value={status}
+                        >
                           {STATUS_LABELS[status]}
                         </option>
                       ))}
                     </select>
-                    )}
-                </div>    
+                  )}
 
+                </div>
               </div>
 
               <div className="mt-6 flex flex-wrap gap-2">
@@ -948,7 +1076,7 @@ useEffect(()=>{
                     Scheduled
                   </span>
                 )}
-0
+
               </div>
 
               {followUp ? (
@@ -972,7 +1100,9 @@ useEffect(()=>{
 
                   <button
                     type="button"
-                    onClick={() => setShowFollowUpForm(true)}
+                    onClick={() =>
+                      setShowFollowUpForm(true)
+                    }
                     className="mt-4 text-sm font-semibold text-lime-400 hover:text-lime-300"
                   >
                     Edit Follow-up
@@ -995,7 +1125,11 @@ useEffect(()=>{
 
               <button
                 type="button"
-                onClick={() => setShowFollowUpForm((previous) => !previous)}
+                onClick={() =>
+                  setShowFollowUpForm(
+                    (previous) => !previous
+                  )
+                }
                 className="mt-4 min-h-11 w-full rounded-xl bg-lime-400 px-4 text-sm font-bold text-black transition hover:bg-lime-300"
               >
                 {showFollowUpForm
@@ -1009,6 +1143,7 @@ useEffect(()=>{
                 <div className="mt-5 space-y-4 border-t border-white/10 pt-5">
 
                   <div>
+
                     <label
                       htmlFor="followup-date"
                       className="text-xs font-semibold uppercase tracking-wider text-zinc-500"
@@ -1021,13 +1156,17 @@ useEffect(()=>{
                       type="date"
                       value={followUpDate}
                       onChange={(event) =>
-                        setFollowUpDate(event.target.value)
+                        setFollowUpDate(
+                          event.target.value
+                        )
                       }
                       className="mt-2 min-h-11 w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3 text-sm text-zinc-200 outline-none focus:border-lime-400/60"
                     />
+
                   </div>
 
                   <div>
+
                     <label
                       htmlFor="followup-time"
                       className="text-xs font-semibold uppercase tracking-wider text-zinc-500"
@@ -1040,13 +1179,17 @@ useEffect(()=>{
                       type="time"
                       value={followUpTime}
                       onChange={(event) =>
-                        setFollowUpTime(event.target.value)
+                        setFollowUpTime(
+                          event.target.value
+                        )
                       }
                       className="mt-2 min-h-11 w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3 text-sm text-zinc-200 outline-none focus:border-lime-400/60"
                     />
+
                   </div>
 
                   <div>
+
                     <label
                       htmlFor="followup-reason"
                       className="text-xs font-semibold uppercase tracking-wider text-zinc-500"
@@ -1058,12 +1201,15 @@ useEffect(()=>{
                       id="followup-reason"
                       value={followUpReason}
                       onChange={(event) =>
-                        setFollowUpReason(event.target.value)
+                        setFollowUpReason(
+                          event.target.value
+                        )
                       }
                       rows={3}
                       placeholder="Confirm trial booking..."
                       className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-[#0A0A0A] p-3 text-sm text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-lime-400/60"
                     />
+
                   </div>
 
                   <button
@@ -1078,85 +1224,7 @@ useEffect(()=>{
               )}
 
             </section>
-
-            {/* ACTIVITY TIMELINE */}
-
-            <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-base font-bold text-white">
-                  Activity Timeline
-                </h3>
-
-                <span className="text-xs text-zinc-500">
-                  {activities.length} events
-                </span>
-              </div>
-
-              {sortedActivities.length === 0 ? (
-                <div className="mt-5 rounded-xl border border-dashed border-white/10 p-6 text-center">
-                  <p className="text-sm text-zinc-500">
-                    No activities yet.
-                  </p>
-                </div>
-              ) : (
-                <div className="relative mt-6 space-y-6">
-
-                  <div
-                    aria-hidden="true"
-                    className="absolute bottom-4 left-4 top-4 w-px bg-white/10"
-                  />
-
-                  {sortedActivities.map((activity) => (
-                    <div
-                      key={activity.id}
-                      className="relative flex gap-4"
-                    >
-
-                      <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-lime-400/20 bg-[#161616] text-xs text-lime-300">
-                        {activity.type === "created"
-                          ? "+"
-                          : activity.type === "status_changed"
-                          ? "→"
-                          : activity.type === "note_added"
-                          ? "N"
-                          : "C"}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-
-                        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                          <p className="text-sm font-semibold text-zinc-200">
-                            {activity.type === "created"
-                              ? "Lead Created"
-                              : activity.type === "status_changed"
-                              ? "Status Changed"
-                              : activity.type === "note_added"
-                              ? "Note Added"
-                              : "Follow-up Scheduled"}
-                          </p>
-
-                          <span className="text-xs text-zinc-600">
-                            {formatDateTime(activity.createdAt)}
-                          </span>
-                        </div>
-
-                        <p className="mt-1 text-sm leading-6 text-zinc-500">
-                          {activity.description}
-                        </p>
-
-                      </div>
-
-                    </div>
-                  ))}
-
-                </div>
-              )}
-
-            </section>
-
           </div>
-
         </div>
 
         {/* DANGER ZONE */}
@@ -1166,6 +1234,7 @@ useEffect(()=>{
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
+
               <h3 className="text-sm font-bold text-zinc-200">
                 Danger Zone
               </h3>
@@ -1173,23 +1242,17 @@ useEffect(()=>{
               <p className="mt-1 text-sm text-zinc-500">
                 Delete this lead and its associated data.
               </p>
-            </div>
-             <button
-                  type="button"
-                  onClick={()=>handleDeleteLead(id)}
-                  disabled= {delLoading}
-                  className="min-h-11 rounded-xl bg-red-500 px-4 text-sm font-bold text-white hover:bg-red-400"
-                >
-                  {delLoading ? "Deleting" : "Delete Lead"}
-                </button>
 
-            {/* <button
+            </div>
+
+            <button
               type="button"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="min-h-11 rounded-xl border border-red-400/30 px-4 text-sm font-semibold text-red-400 transition hover:bg-red-400/10"
+              onClick={() => handleDeleteLead(id)}
+              disabled={delLoading}
+              className="min-h-11 rounded-xl bg-red-500 px-4 text-sm font-bold text-white hover:bg-red-400"
             >
-              Delete Lead
-            </button> */}
+              {delLoading ? "Deleting" : "Delete Lead"}
+            </button>
 
           </div>
 
@@ -1215,16 +1278,19 @@ useEffect(()=>{
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-zinc-400">
-                This is a dummy deletion. In the real application,
-                the backend must validate the request before
-                permanently deleting a lead.
+                This is a dummy deletion. In the real
+                application, the backend must validate
+                the request before permanently deleting
+                a lead.
               </p>
 
               <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
 
                 <button
                   type="button"
-                  onClick={() => setShowDeleteConfirm(false)}
+                  onClick={() =>
+                    setShowDeleteConfirm(false)
+                  }
                   className="min-h-11 rounded-xl border border-white/10 px-4 text-sm font-semibold text-zinc-300 hover:bg-white/[0.04]"
                 >
                   Cancel
@@ -1232,11 +1298,15 @@ useEffect(()=>{
 
                 <button
                   type="button"
-                  onClick={()=>handleDeleteLead(id)}
-                  disabled= {delLoading}
+                  onClick={() =>
+                    handleDeleteLead(id)
+                  }
+                  disabled={delLoading}
                   className="min-h-11 rounded-xl bg-red-500 px-4 text-sm font-bold text-white hover:bg-red-400"
                 >
-                  {delLoading ? "Deleting" : "Delete Lead"}
+                  {delLoading
+                    ? "Deleting"
+                    : "Delete Lead"}
                 </button>
 
               </div>

@@ -30,6 +30,13 @@ export interface Lead {
   name: string;
   email: string;
   purpose: string;
+  phone: string;
   status: string;
+  notes:[
+    {
+      text: string,
+      createdAt: Date,
+    }
+  ]
   createdAt: string;
 }

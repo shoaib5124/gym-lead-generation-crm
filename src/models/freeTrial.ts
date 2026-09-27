@@ -1,5 +1,16 @@
 import mongoose from "mongoose";
 
+const noteSchema = new mongoose.Schema({
+  text: {
+    type: String,
+    required: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
 const freeTrialSchema = new mongoose.Schema(
   {
     name: {
@@ -25,6 +36,9 @@ const freeTrialSchema = new mongoose.Schema(
       enum: ["new", "contacted", "interested", "trial-booked", "joined"],
       default: "new",
     },
+    
+    notes: [noteSchema],
+
   },
   {
     timestamps: true,

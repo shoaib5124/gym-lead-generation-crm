@@ -83,7 +83,7 @@ catch(error){
 }
 }
 
-///////////////////////////////// Update API ///////////////////////////////////////
+///////////////////////////////// Status Update API ///////////////////////////////////////
 export async function PATCH(
   request: Request,
   {params}: {params: Promise<{id:string}>}
@@ -91,13 +91,46 @@ export async function PATCH(
 {
   try{
     const {id} = await params;
+    console.log(id)
     const body = await request.json();
+    console.log("Body", body)
+
+    const updatedOperations:{
+      $set?: {
+        status: string;
+      },
+      $push?:{
+        notes:{
+          text: string,
+          createdAt: Date
+        }
+      }
+    } = {};
+
+    if(body.status !== undefined){
+        updatedOperations.$set ={
+          status: body.status
+        }
+    };
+
+    if(body.noteText !== undefined){
+       updatedOperations.$push ={
+        notes: {
+          text: body.noteText,
+          createdAt: new Date()
+        }
+       }
+    }
+
     const lead = await FreeTrial.findByIdAndUpdate(
       id,
-      {status: body.status},
-      {new: true, runValidators:true}   
-    );
-    if (!lead){
+      updatedOperations,
+      {
+        new: true, 
+        runValidators:true
+      });
+
+     if (!lead){
     return NextResponse.json(
       {message: " Lead not found"},
       {status: 404}
@@ -119,3 +152,5 @@ export async function PATCH(
 
 }
 }
+
+///////////////////////////////// Notes Add API ///////////////////////////////////////
