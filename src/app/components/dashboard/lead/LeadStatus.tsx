@@ -1,14 +1,8 @@
 import React from 'react'
-import {Lead} from "@/app/types"
+import type { Lead, LeadStatusType } from "@/app/types";
 import { toast } from "sonner";
 
-type LeadStatus =
-  | "new"
-  | "contacted"
-  | "Notresponed"
-  | "interested"
-  | "trial-booked"
-  | "joined";
+type LeadStatus = LeadStatusType;
 
   const STATUS_STYLES: Record<LeadStatus, string> = {
   new: "border-lime-400/20 bg-lime-400/10 text-lime-300",
@@ -35,18 +29,19 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
   joined: "Joined",
 };
 
-interface LeadStatusProps{
-    setLead: React.Dispatch<React.SetStateAction<Lead | null>>
-    lead: Lead;
-    statusLoading: boolean;
-    setstatusLoading: React.Dispatch<React.SetStateAction<boolean>>
-    id: string;
-    updateLeadStatus: (
+
+interface LeadStatusProps {
+  setLead: React.Dispatch<React.SetStateAction<Lead | null>>;
+  lead: Lead | null;
+  statusLoading: boolean;
+  setstatusLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  id: string;
+  updateLeadStatus: (
     id: string,
     status: LeadStatus
-    ) => Promise<Lead | undefined>;
-
+  ) => Promise<Lead | undefined>;
 }
+
 
 export const LeadStatus = (
 {
@@ -58,6 +53,9 @@ export const LeadStatus = (
   updateLeadStatus,
 }: LeadStatusProps
 ) =>{
+    if (!lead) {
+    return null;
+  }
   return (
     <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
 

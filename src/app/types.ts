@@ -25,18 +25,27 @@ export interface FreeTrialFormData {
   phone: string;
   fitnessGoal: string;
 }
+export type LeadStatusType =
+  | "new"
+  | "contacted"
+  | "Notresponed"
+  | "interested"
+  | "trial-booked"
+  | "joined";
+
 export interface Lead {
   _id: string;
   name: string;
   email: string;
   purpose: string;
   phone: string;
-  status: string;
-  notes:[
-    {
-      text: string,
-      createdAt: Date,
-    }
-  ]
+  source: string;
+  status: LeadStatusType;
+  notes: {
+    _id?: string;
+    text: string;
+    createdAt: string | Date;
+  }[];
   createdAt: string;
+  updatedAt: string;
 }

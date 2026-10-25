@@ -10,17 +10,7 @@ import { FollowUp } from "@/app/components/leads/FollowUp";
 // import {FollowUp} from "@/app/components/leads/FollowUp";
 import { Notes} from "@/app/components/dashboard/lead/Notes";
 import { deleteNoteApi, ApiError } from "@/lib/api/notes";
-interface Lead {
-  _id: string;
-  name: string;
-  email: string;
-  phone: string;
-  purpose: string;
-  source: string;
-  status: LeadStatus;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { Lead } from "@/app/types";
 
 type PageState =
   | "loading"

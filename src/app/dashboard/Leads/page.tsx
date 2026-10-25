@@ -3,16 +3,7 @@ import { useEffect, useState } from "react";
 import LeadsHeader from "@/app/components/leads/Header";        
 import LeadsToolBar from "@/app/components/leads/LeadsToolBar";        
 import LeadsTable from "@/app/components/leads/LeadsTable";        
-
-interface Lead {
-  _id: string;
-  name: string;
-  email: string;
-  purpose: string;
-  status: string;
-  createdAt: string;
-}
-
+import type { Lead } from "@/app/types";
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
