@@ -6,6 +6,7 @@ import LeadHeader from "@/app/components/dashboard/lead/LeadHeader";
 import { ContactInformation } from "@/app/components/dashboard/lead/ContactInformation";
 import {LeadStatus} from "@/app/components/dashboard/lead/LeadStatus";
 import {LeadPurpose} from "@/app/components/dashboard/lead/LeadPurpose";
+import { FollowUp } from "@/app/components/leads/FollowUp";
 // import {FollowUp} from "@/app/components/leads/FollowUp";
 import { Notes} from "@/app/components/dashboard/lead/Notes";
 import { deleteNoteApi, ApiError } from "@/lib/api/notes";
@@ -606,6 +607,21 @@ export default function LeadDetailsPage({
             
 
             {/* FOLLOW-UP */}
+            
+              {/* FOLLOW-UP */}
+              <FollowUp
+                followUp={followUp}
+                showFollowUpForm={showFollowUpForm}
+                setShowFollowUpForm={setShowFollowUpForm}
+                followUpDate={followUpDate}
+                setFollowUpDate={setFollowUpDate}
+                followUpTime={followUpTime}
+                setFollowUpTime={setFollowUpTime}
+                followUpReason={followUpReason}
+                setFollowUpReason={setFollowUpReason}
+                handleScheduleFollowUp={handleScheduleFollowUp}
+              />
+
 
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
 
