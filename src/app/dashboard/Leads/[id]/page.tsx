@@ -1,10 +1,14 @@
-
 "use client";
-
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
+import LeadHeader from "@/app/components/dashboard/lead/LeadHeader";
+import { ContactInformation } from "@/app/components/dashboard/lead/ContactInformation";
+import {LeadStatus} from "@/app/components/dashboard/lead/LeadStatus";
+import {LeadPurpose} from "@/app/components/dashboard/lead/LeadPurpose";
+// import {FollowUp} from "@/app/components/leads/FollowUp";
+import { Notes} from "@/app/components/dashboard/lead/Notes";
+import { deleteNoteApi, ApiError } from "@/lib/api/notes";
 interface Lead {
   _id: string;
   name: string;
@@ -24,20 +28,8 @@ type PageState =
   | "deleted"
   | "error";
 
-type LeadStatus =
-  | "new"
-  | "contacted"
-  | "Notresponed"
-  | "interested"
-  | "trial-booked"
-  | "joined";
 
-interface Note {
-  id: string;
-  text: string;
-  author: string;
-  createdAt: string;
-}
+
 
 interface FollowUp {
   date: string;
@@ -49,47 +41,10 @@ interface LeadDetailsPageProps {
   params: Promise<{ id: string }>;
 }
 
-const STATUS_OPTIONS: LeadStatus[] = [
-  "new",
-  "contacted",
-  "interested",
-  "trial-booked",
-  "joined",
-];
 
-const STATUS_LABELS: Record<LeadStatus, string> = {
-  new: "New",
-  contacted: "Contacted",
-  interested: "Interested",
-  Notresponed: "Not-Responed",
-  "trial-booked": "Trial Booked",
-  joined: "Joined",
-};
 
-const STATUS_STYLES: Record<LeadStatus, string> = {
-  new: "border-lime-400/20 bg-lime-400/10 text-lime-300",
-  contacted: "border-blue-400/20 bg-blue-400/10 text-blue-300",
-  interested: "border-purple-400/20 bg-purple-400/10 text-purple-300",
-  Notresponed: "border-blue-400/20 bg-lime-400 text-purple-300",
-  "trial-booked":
-    "border-orange-400/20 bg-orange-400/10 text-orange-300",
-  joined: "border-lime-400 bg-lime-400 text-black",
-};
 
-const formatDate = (date: string) =>
-  new Date(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 
-const formatDateTime = (date: string) =>
-  new Date(date).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 
 const getInitials = (name: string) =>
   name
@@ -104,7 +59,7 @@ export default function LeadDetailsPage({
 }: LeadDetailsPageProps) {
   const { id } = use(params);
 
-  console.log("LeadDetailsPage is running");
+
 
   const [deletingNoteId, setDeletingNoteId] =
     useState<string | null>(null);
@@ -187,7 +142,6 @@ export default function LeadDetailsPage({
   };
 
   //////////////////////// Schedule Follow Up ////////////////////////
-
   const handleScheduleFollowUp = () => {
     if (
       !followUpDate ||
@@ -212,51 +166,77 @@ export default function LeadDetailsPage({
   //////////////////////// Delete Note API ////////////////////////
 
   const handleDeleteNote = async (
-    leadId: string,
-    noteId: string
-  ) => {
-    try {
-      setDeletingNoteId(noteId);
+  leadId: string,
+  noteId: string
+) => {
+  // Edge case 1: Invalid noteId
+  if (!noteId || typeof noteId !== "string" || noteId.trim() === "") {
+    toast.error("Invalid note ID. Cannot delete.");
+    return;
+  }
 
-      const response = await fetch(
-        `/api/freeTrial/${id}/notes/${noteId}`,
-        {
-          method: "DELETE",
-        }
-      );
+  // Edge case 2: No internet
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    toast.error("No internet connection. Please check your network.");
+    return;
+  }
 
-      const data = await response.json();
+  setDeletingNoteId(noteId);
 
-      console.log(noteId);
+  try {
+    const data = await deleteNoteApi(leadId, noteId);
 
-      if (!response.ok) {
-        toast.error(
-          data.message ||
-            "Failed to delete note. Please try again."
-        );
+    // Success
+    setNotes((previousNotes) =>
+      previousNotes.filter((note) => note._id !== noteId)
+    );
+    toast.success(data?.message || "Note deleted successfully.");
+  } catch (error) {
+    console.error("Delete note error:", error);
 
-        return;
+    // Typed API error — map status to toast
+    if (error instanceof ApiError) {
+      switch (error.status) {
+        case 404:
+          toast.error(
+            error.message || "Note not found. It may have been already deleted."
+          );
+          // Sync UI — remove ghost note
+          setNotes((previousNotes) =>
+            previousNotes.filter((note) => note._id !== noteId)
+          );
+          break;
+        case 401:
+        case 403:
+          toast.error(error.message || "You are not authorized to delete this note.");
+          break;
+        case 400:
+          toast.error(error.message || "Invalid request. Please refresh and try again.");
+          break;
+        case 500:
+          toast.error(error.message || "Server error. Please try again later.");
+          break;
+        default:
+          toast.error(error.message || "Failed to delete note. Please try again.");
       }
-
-      setNotes((previousNotes) =>
-        previousNotes.filter(
-          (note) => note._id !== noteId
-        )
-      );
-
-      toast.success(
-        data.message || "Note deleted successfully."
-      );
-    } catch (error) {
-      console.error("Delete note error:", error);
-
-      toast.error(
-        "Unable to connect to the server. Please try again."
-      );
-    } finally {
-      setDeletingNoteId(null);
+      return;
     }
-  };
+
+    // Network error (fetch threw TypeError)
+    if (
+      error instanceof TypeError &&
+      error.message.includes("Failed to fetch")
+    ) {
+      toast.error("Network error. Please check your internet connection.");
+      return;
+    }
+
+    // Unknown error
+    toast.error("Unable to connect to the server. Please try again.");
+  } finally {
+    setDeletingNoteId(null);
+  }
+};
 
   //////////////////////// Edit Note API ////////////////////////
 
@@ -354,7 +334,7 @@ export default function LeadDetailsPage({
 
       setNotes(data.lead.notes);
 
-      console.log(data.lead);
+   
 
       setPageState("success");
     } catch (error) {
@@ -419,7 +399,7 @@ export default function LeadDetailsPage({
       </div>
     );
   }
-
+ 
   //////////////////////// Error State ////////////////////////
 
   if (pageState === "error") {
@@ -548,124 +528,16 @@ export default function LeadDetailsPage({
             </p>
           </div>
         </div>
-
-        {/* LEAD PROFILE HEADER */}
-
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-
-            <div className="flex min-w-0 items-center gap-4">
-
-              <div
-                aria-hidden="true"
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-lime-400/10 text-lg font-bold text-lime-400 ring-1 ring-lime-400/20"
-              >
-                {getInitials(lead.name)}
-              </div>
-
-              <div className="min-w-0">
-
-                <h2 className="truncate text-xl font-bold text-white sm:text-2xl">
-                  {lead.name}
-                </h2>
-
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
-                  <span>
-                    ID: #{lead._id.slice(0, 8)}
-                  </span>
-
-                  <span aria-hidden="true">·</span>
-
-                  <span>
-                    Created {formatDate(lead.createdAt)}
-                  </span>
-                </div>
-
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-
-              <div className="relative w-32">
-
-                {statusLoading ? (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-lime-400" />
-                  </div>
-                ) : (
-                  <select
-                    value={lead?.status}
-                    onChange={async (event) => {
-                      try {
-                        setstatusLoading(true);
-
-                        const newStatus =
-                          event.target.value as LeadStatus;
-
-                        const updatedLead =
-                          await updateLeadStatus(
-                            id,
-                            newStatus
-                          );
-
-                        if (updatedLead) {
-                          setLead(updatedLead);
-
-                          toast.success(
-                            "Lead status updated successfully"
-                          );
-                        }
-                      } finally {
-                        setstatusLoading(false);
-                      }
-                    }}
-                    aria-label="Change lead status"
-                    className="min-h-11 rounded-xl border border-white/10 bg-[#111111] px-3 text-sm font-semibold text-zinc-200 outline-none transition focus:border-lime-400/60 focus:ring-2 focus:ring-lime-400/20"
-                  >
-                    {STATUS_OPTIONS.map((status) => (
-                      <option
-                        key={status}
-                        value={status}
-                      >
-                        {STATUS_LABELS[status]}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-
-                <a
-                  href={`tel:${lead.phone}`}
-                  aria-label="Call lead"
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-zinc-200 transition hover:border-lime-400/40 hover:text-lime-300"
-                >
-                  ☎ Call
-                </a>
-
-                <a
-                  href={`mailto:${lead.email}`}
-                  aria-label="Email lead"
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-zinc-200 transition hover:border-lime-400/40 hover:text-lime-300"
-                >
-                  ✉ Email
-                </a>
-
-                <button
-                  type="button"
-                  onClick={handleCopyEmail}
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-zinc-200 transition hover:border-lime-400/40 hover:text-lime-300"
-                >
-                  {copied ? "Copied" : "Copy"}
-                </button>
-
-              </div>
-            </div>
-          </div>
-        </section>
-
+         <LeadHeader
+            setLead={setLead}
+            lead={lead}
+            statusLoading={statusLoading}
+            setstatusLoading={setstatusLoading}
+            copied={copied}
+            id={id}
+            onCopyEmail={handleCopyEmail}
+            updateLeadStatus={updateLeadStatus}
+          />
         {/* ERROR MESSAGE */}
 
         {error && (
@@ -692,273 +564,30 @@ export default function LeadDetailsPage({
           {/* LEFT COLUMN */}
 
           <div className="space-y-6">
+          <ContactInformation
+          copied={copied}
+          setcopied={setCopied}
+           lead={lead}
+           handleCopyEmail={handleCopyEmail}
 
-            {/* CONTACT INFORMATION */}
+           />
 
-            <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-
-              <div className="flex items-center justify-between gap-3">
-
-                <h3 className="text-base font-bold text-white">
-                  Contact Information
-                </h3>
-
-                <span className="text-xs text-zinc-600">
-                  Profile
-                </span>
-
-              </div>
-
-              <div className="mt-5 space-y-4">
-
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-                    Full Name
-                  </p>
-
-                  <p className="mt-1 text-sm text-zinc-200">
-                    {lead.name}
-                  </p>
-                </div>
-
-                <div>
-
-                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-                    Email
-                  </p>
-
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-
-                    <p className="break-all text-sm text-zinc-200">
-                      {lead.email}
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={handleCopyEmail}
-                      className="text-xs font-semibold text-lime-400 hover:text-lime-300"
-                    >
-                      {copied ? "Copied" : "Copy"}
-                    </button>
-
-                  </div>
-                </div>
-
-                <div>
-
-                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-                    Phone
-                  </p>
-
-                  <a
-                    href={`tel:${lead.phone}`}
-                    className="mt-1 inline-block text-sm text-zinc-200 hover:text-lime-300"
-                  >
-                    {lead.phone}
-                  </a>
-
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-
-                  <div>
-
-                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-                      Created
-                    </p>
-
-                    <p className="mt-1 text-sm text-zinc-200">
-                      {formatDate(lead.createdAt)}
-                    </p>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            </section>
-
-            {/* LEAD PURPOSE */}
-
-            <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-
-              <h3 className="text-base font-bold text-white">
-                Lead Purpose / Fitness Goal
-              </h3>
-
-              <p className="mt-4 text-sm leading-7 text-zinc-300">
-                {lead.purpose}
-              </p>
-
-            </section>
+           
+           <LeadPurpose lead={lead}/>
 
             {/* NOTES */}
-
-            <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-
-              <div className="flex items-center justify-between gap-3">
-
-                <h3 className="text-base font-bold text-white">
-                  Notes
-                </h3>
-
-                <span className="text-xs text-zinc-500">
-                  {notes.length}{" "}
-                  {notes.length === 1 ? "note" : "notes"}
-                </span>
-
-              </div>
-
-              <div className="mt-5">
-
-                <label
-                  htmlFor="lead-note"
-                  className="text-xs font-semibold uppercase tracking-wider text-zinc-500"
-                >
-                  {editingNoteId
-                    ? "Edit Note"
-                    : "Add Note"}
-                </label>
-
-                <textarea
-                  id="lead-note"
-                  value={noteText}
-                  onChange={(event) =>
-                    setNoteText(event.target.value)
-                  }
-                  placeholder="Write a note about your conversation..."
-                  rows={4}
-                  className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-[#0A0A0A] p-3 text-sm leading-6 text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-lime-400/60 focus:ring-2 focus:ring-lime-400/20"
-                />
-
-                <div className="mt-3 flex flex-wrap gap-2">
-
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (editingNoteId) {
-                        handleUpdateNote(
-                          id,
-                          editingNoteId,
-                          noteText
-                        );
-                      } else {
-                        handleSaveNote(id);
-                      }
-                    }}
-                    disabled={!noteText.trim()}
-                    className="min-h-11 rounded-xl bg-lime-400 px-4 text-sm font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {editingNoteId
-                      ? "Save Changes"
-                      : "Add Note"}
-                  </button>
-
-                  {editingNoteId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingNoteId(null);
-                        setNoteText("");
-                      }}
-                      className="min-h-11 rounded-xl border border-white/10 px-4 text-sm font-semibold text-zinc-300 hover:border-white/20"
-                    >
-                      Cancel
-                    </button>
-                  )}
-
-                </div>
-
-              </div>
-
-              <div className="mt-6 space-y-3">
-
-                {notes.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-white/10 p-6 text-center">
-
-                    <p className="text-sm text-zinc-500">
-                      No notes yet.
-                    </p>
-
-                  </div>
-                ) : (
-                  notes.map((note) => (
-                    <div
-                      key={note.id}
-                      className="rounded-xl border border-white/10 bg-[#0A0A0A] p-4"
-                    >
-
-                      <div className="flex items-start justify-between gap-3">
-
-                        <div className="flex min-w-0 items-center gap-3">
-
-                          <div className="min-w-0">
-
-                            <p className="text-sm font-semibold text-zinc-200">
-                              {note.author}
-                            </p>
-
-                            <p className="text-xs text-zinc-600">
-                              {formatDateTime(
-                                note.createdAt
-                              )}
-                            </p>
-
-                          </div>
-
-                        </div>
-
-                        <div className="flex shrink-0 gap-2">
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingNoteId(
-                                note._id
-                              );
-
-                              setNoteText(note.text);
-                            }}
-                            className="text-xs font-semibold text-zinc-500 hover:text-lime-300"
-                          >
-                            Edit
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDeleteNote(
-                                id,
-                                note._id
-                              )
-                            }
-                            disabled={
-                              deletingNoteId ===
-                              note._id
-                            }
-                            className="text-xs font-semibold text-zinc-500 hover:text-red-400 disabled:opacity-50"
-                          >
-                            {deletingNoteId === note._id
-                              ? "Deleting..."
-                              : "Delete"}
-                          </button>
-
-                        </div>
-
-                      </div>
-
-                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-400">
-                        {note.text}
-                      </p>
-
-                    </div>
-                  ))
-                )}
-
-              </div>
-
-            </section>
+           <Notes
+              notes={notes}
+              editingNoteId={editingNoteId}
+              noteText={noteText}
+              id={id}
+              setNoteText={setNoteText}
+              handleUpdateNote={handleUpdateNote}
+              handleSaveNote={handleSaveNote}
+              setEditingNoteId={setEditingNoteId}
+              handleDeleteNote={handleDeleteNote}
+              deletingNoteId={deletingNoteId}
+           />
           </div>
 
           {/* RIGHT COLUMN */}
@@ -966,100 +595,15 @@ export default function LeadDetailsPage({
           <div className="space-y-6">
 
             {/* STATUS MANAGEMENT */}
-
-            <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-
-              <div className="flex items-center justify-between gap-3">
-
-                <h3 className="text-base font-bold text-white">
-                  Lead Status
-                </h3>
-
-                <span
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${STATUS_STYLES[lead.status]}`}
-                >
-                  {STATUS_LABELS[lead.status]}
-                </span>
-
-              </div>
-
-              <div className="mt-5 space-y-2">
-
-                <label
-                  htmlFor="lead-status"
-                  className="text-xs font-semibold uppercase tracking-wider text-zinc-500"
-                >
-                  Update Status
-                </label>
-
-                <div className="relative">
-
-                  {statusLoading ? (
-                    <div className="flex h-10 w-full items-center justify-center rounded-lg border border-zinc-700">
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-lime-400" />
-                    </div>
-                  ) : (
-                    <select
-                      id="lead-status"
-                      value={lead?.status}
-                      onChange={async (event) => {
-                        try {
-                          setstatusLoading(true);
-
-                          const newStatus =
-                            event.target.value as LeadStatus;
-
-                          const updatedLead =
-                            await updateLeadStatus(
-                              id,
-                              newStatus
-                            );
-
-                          if (updatedLead) {
-                            setLead(updatedLead);
-
-                            toast.success(
-                              "Lead status updated successfully"
-                            );
-                          }
-                        } finally {
-                          setstatusLoading(false);
-                        }
-                      }}
-                      className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3 text-sm text-zinc-200 outline-none focus:border-lime-400/60 focus:ring-2 focus:ring-lime-400/20"
-                    >
-                      {STATUS_OPTIONS.map((status) => (
-                        <option
-                          key={status}
-                          value={status}
-                        >
-                          {STATUS_LABELS[status]}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-2">
-
-                {STATUS_OPTIONS.map((status) => (
-                  <span
-                    key={status}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-                      status === lead.status
-                        ? STATUS_STYLES[status]
-                        : "border-white/10 bg-white/[0.03] text-zinc-500"
-                    }`}
-                  >
-                    {STATUS_LABELS[status]}
-                  </span>
-                ))}
-
-              </div>
-
-            </section>
+          <LeadStatus
+           setLead={setLead}
+           lead={lead}
+           statusLoading={statusLoading}
+           setstatusLoading={setstatusLoading}
+           id={id}
+           updateLeadStatus={updateLeadStatus}
+          />
+            
 
             {/* FOLLOW-UP */}
 
