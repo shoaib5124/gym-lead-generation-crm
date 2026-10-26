@@ -12,16 +12,9 @@ import MobileBottomNav from "@/app/components/dashboard/MobileBottomNav";
 import StatCard from "@/app/components/dashboard/StatCard";
 import RecentLeads from "@/app/components/dashboard/RecentLeads";
 import Navbar from "@/app/components/dashboard/Navbar";
-
+import { Lead} from "@/app/types"
 export default function DashboardPage() {
-  interface Lead {
-  _id: string;
-  name: string;
-  email: string;
-  purpose: string;
-  status: string;
-  createdAt: string;
-}
+
 
   const [recentLeads, setrecentLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);

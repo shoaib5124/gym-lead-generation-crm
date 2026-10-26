@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import FreeTrial from "@/models/freeTrial";
 import { Stats } from "@/app/components/Stats";
 
+
 export async function POST(request: Request) {
   try {
     // 1. Connect to MongoDB

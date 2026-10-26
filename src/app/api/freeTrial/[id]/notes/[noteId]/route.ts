@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {connectDB} from "@/lib/mongodb";
+import {Note} from "@/app/types";
 import FreeTrial from "@/models/freeTrial";
 import mongoose from "mongoose";
 
@@ -106,7 +107,7 @@ if (!lead) {
 
 // Check whether note exists
 const noteExists = lead.notes.some(
-  (note) => note._id.toString() === noteId
+  (note:Note) => note._id?.toString() === noteId
 );
 
 if (!noteExists) {

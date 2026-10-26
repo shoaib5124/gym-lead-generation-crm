@@ -152,8 +152,8 @@ export default function LeadDetailsPage({
   //////////////////////// Delete Note API ////////////////////////
 
   const handleDeleteNote = async (
-  leadId: string,
-  noteId: string
+  leadId: string | null,
+  noteId: string | null
 ) => {
   // Edge case 1: Invalid noteId
   if (!noteId || typeof noteId !== "string" || noteId.trim() === "") {
@@ -631,7 +631,7 @@ export default function LeadDetailsPage({
                   </p>
 
                   <p className="mt-2 text-sm font-semibold text-zinc-200">
-                    {followUp.date} · {followUp.time}
+                    {followUp.date.toLocaleDateString()} · {followUp.time}
                   </p>
 
                   <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
