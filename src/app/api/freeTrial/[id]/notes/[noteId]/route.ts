@@ -77,7 +77,7 @@ export async function DELETE(
 {params}:
 {params: 
   Promise<{
-    noteId: string, 
+    noteId: string , 
     id:string
   }>}
 ){

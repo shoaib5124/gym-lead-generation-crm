@@ -35,8 +35,8 @@ export type LeadStatusType =
 
   export interface Note {
     author: string;
-    id?: string;
-  _id?: string |null;
+    id: string;
+  _id: string;
   text: string;
   createdAt: string ;
 }

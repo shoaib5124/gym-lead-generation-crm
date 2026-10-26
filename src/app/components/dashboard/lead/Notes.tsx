@@ -22,7 +22,7 @@ interface NotesProps {
     newText: string
   ) => Promise<void>;
   handleSaveNote: (id: string) => Promise<void>;
-  handleDeleteNote: (leadId: string | null, noteId: string | null) => Promise<void>;
+  handleDeleteNote: (leadId: string , noteId: string) => Promise<void>;
   deletingNoteId: string | null;
 }
 
@@ -133,7 +133,7 @@ export const Notes = ({
                   <button
                     type="button"
                     onClick={() => 
-                      handleDeleteNote(id, note._id?? null)}
+                      handleDeleteNote(id, note._id)}
                     disabled={deletingNoteId === note._id}
                     className="text-xs font-semibold text-zinc-500 hover:text-red-400 disabled:opacity-50"
                   >

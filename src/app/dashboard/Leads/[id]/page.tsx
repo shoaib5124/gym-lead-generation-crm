@@ -152,8 +152,8 @@ export default function LeadDetailsPage({
   //////////////////////// Delete Note API ////////////////////////
 
   const handleDeleteNote = async (
-  leadId: string | null,
-  noteId: string | null
+  leadId: string ,
+  noteId: string 
 ) => {
   // Edge case 1: Invalid noteId
   if (!noteId || typeof noteId !== "string" || noteId.trim() === "") {
