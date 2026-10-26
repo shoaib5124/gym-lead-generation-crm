@@ -122,7 +122,7 @@ export const Notes = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setEditingNoteId(note._id);
+                      setEditingNoteId(note._id ?? null);
                       setNoteText(note.text);
                     }}
                     className="text-xs font-semibold text-zinc-500 hover:text-lime-300"

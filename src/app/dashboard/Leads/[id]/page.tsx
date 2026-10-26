@@ -23,7 +23,7 @@ type PageState =
 
 
 interface FollowUp {
-  date: string;
+  date: Date;
   time: string;
   reason: string;
 }
@@ -31,11 +31,6 @@ interface FollowUp {
 interface LeadDetailsPageProps {
   params: Promise<{ id: string }>;
 }
-
-
-
-
-
 
 const getInitials = (name: string) =>
   name
@@ -144,7 +139,7 @@ export default function LeadDetailsPage({
     }
 
     setFollowUp({
-      date: followUpDate,
+      date: new Date(followUpDate),
       time: followUpTime,
       reason: followUpReason.trim(),
     });

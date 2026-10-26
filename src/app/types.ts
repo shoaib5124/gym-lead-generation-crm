@@ -34,9 +34,11 @@ export type LeadStatusType =
   | "joined";
 
   export interface Note {
-  _id?: string;
+    author: string;
+    id?: string;
+  _id?: string |null;
   text: string;
-  createdAt: string | Date;
+  createdAt: string ;
 }
 export interface Lead {
   _id: string;

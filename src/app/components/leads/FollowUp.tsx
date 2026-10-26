@@ -1,7 +1,7 @@
 "use client";
 
 interface FollowUpData {
-  date: string;
+  date: Date;
   time: string;
   reason: string;
 }
@@ -52,7 +52,7 @@ export const FollowUp = ({
           </p>
 
           <p className="mt-2 text-sm font-semibold text-zinc-200">
-            {followUp.date} · {followUp.time}
+            {followUp.date.toLocaleDateString()} · {followUp.time}
           </p>
 
           <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
