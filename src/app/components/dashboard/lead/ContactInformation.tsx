@@ -13,7 +13,7 @@ const formatDate = (date: string) =>
 
 interface ContactInformationProp{
     copied: boolean;
-    lead: Lead;
+    lead: Lead | null;
     handleCopyEmail: () => void;
 }
 export const ContactInformation = (
@@ -23,7 +23,7 @@ export const ContactInformation = (
      handleCopyEmail   
     }:ContactInformationProp
 ) => {
-    
+      if (!lead) return null;
   return (
 
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">

@@ -10,7 +10,7 @@ import { FollowUp } from "@/app/components/leads/FollowUp";
 // import {FollowUp} from "@/app/components/leads/FollowUp";
 import { Notes} from "@/app/components/dashboard/lead/Notes";
 import { deleteNoteApi, ApiError } from "@/lib/api/notes";
-import type { Lead } from "@/app/types";
+import type { Lead, LeadStatusType, Note } from "@/app/types";
 
 type PageState =
   | "loading"
@@ -274,7 +274,7 @@ export default function LeadDetailsPage({
 
   const updateLeadStatus = async (
     id: string,
-    status?: LeadStatus
+    status?: LeadStatusType
   ) => {
     try {
       const response = await fetch(
@@ -526,7 +526,7 @@ export default function LeadDetailsPage({
             setstatusLoading={setstatusLoading}
             copied={copied}
             id={id}
-            onCopyEmail={handleCopyEmail}
+             handleCopyEmail={handleCopyEmail}
             updateLeadStatus={updateLeadStatus}
           />
         {/* ERROR MESSAGE */}
@@ -557,7 +557,6 @@ export default function LeadDetailsPage({
           <div className="space-y-6">
           <ContactInformation
           copied={copied}
-          setcopied={setCopied}
            lead={lead}
            handleCopyEmail={handleCopyEmail}
 
@@ -568,11 +567,11 @@ export default function LeadDetailsPage({
 
             {/* NOTES */}
            <Notes
-              notes={notes}
+              notes= {notes}
               editingNoteId={editingNoteId}
               noteText={noteText}
               id={id}
-              setNoteText={setNoteText}
+              setNoteText= {setNoteText}
               handleUpdateNote={handleUpdateNote}
               handleSaveNote={handleSaveNote}
               setEditingNoteId={setEditingNoteId}

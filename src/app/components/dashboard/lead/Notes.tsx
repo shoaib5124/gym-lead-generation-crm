@@ -1,12 +1,5 @@
 import React from 'react';
-
-interface Note {
-  _id: string;
-  id: string;
-  text: string;
-  author: string;
-  createdAt: string;
-}
+import {Note} from '@/app/types' 
 
 const formatDateTime = (date: string) =>
   new Date(date).toLocaleString("en-US", {

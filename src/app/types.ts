@@ -33,6 +33,11 @@ export type LeadStatusType =
   | "trial-booked"
   | "joined";
 
+  export interface Note {
+  _id?: string;
+  text: string;
+  createdAt: string | Date;
+}
 export interface Lead {
   _id: string;
   name: string;
@@ -41,11 +46,7 @@ export interface Lead {
   phone: string;
   source: string;
   status: LeadStatusType;
-  notes: {
-    _id?: string;
-    text: string;
-    createdAt: string | Date;
-  }[];
+   notes: Note[];
   createdAt: string;
   updatedAt: string;
 }

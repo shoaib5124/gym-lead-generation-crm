@@ -1,12 +1,12 @@
 import React from 'react'
 import {Lead} from "@/app/types"
 interface LeadPurposeProps{
-    lead: Lead
+    lead: Lead | null;
 }
 export const LeadPurpose = (
-{lead}: LeadPurposeProps
+{lead}: LeadPurposeProps 
 )=> {
-   
+  if (!lead) return null;
   return (
         <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
 

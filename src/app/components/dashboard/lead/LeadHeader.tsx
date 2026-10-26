@@ -41,7 +41,8 @@ const formatDate = (date: string) =>
 
 interface LeadHeaderProps {
   setLead: React.Dispatch<React.SetStateAction<Lead | null>>
-  lead: Lead;
+  
+  lead: Lead | null;
   statusLoading: boolean;
   setstatusLoading: React.Dispatch<React.SetStateAction<boolean>>
   copied: boolean;
@@ -63,6 +64,7 @@ export default function LeadHeader({
   handleCopyEmail,
   updateLeadStatus,
 }: LeadHeaderProps) {
+ if (!lead) return null;
   return (
      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
