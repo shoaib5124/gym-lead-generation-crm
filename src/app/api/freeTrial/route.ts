@@ -4,6 +4,7 @@ import FreeTrial from "@/models/freeTrial";
 import { Stats } from "@/app/components/Stats";
 
 
+
 export async function POST(request: Request) {
   try {
     // 1. Connect to MongoDB
@@ -12,10 +13,46 @@ export async function POST(request: Request) {
     // 2. Get data sent by the frontend
     const data = await request.json();
 
-    // 3. Save data using the Mongoose model
+    // 3. Save the lead to MongoDB
     const freeTrial = await FreeTrial.create(data);
 
-    // 4. Send success response
+    // 4. Notify n8n after the lead has been saved
+    const n8nUrl = process.env.N8N_WEBHOOK_URL;
+    const n8nSecret = process.env.N8N_WEBHOOK_SECRET;
+
+    if (n8nUrl && n8nSecret) {
+      try {
+        const n8nResponse = await fetch(n8nUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Webhook-Secret": n8nSecret,
+          },
+          body: JSON.stringify({
+            name: freeTrial.name,
+            email: freeTrial.email,
+            phone: freeTrial.phone,
+            purpose: freeTrial.purpose,
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+
+        if (!n8nResponse.ok) {
+          console.error(
+            "n8n webhook failed:",
+            n8nResponse.status,
+            await n8nResponse.text()
+          );
+        }
+      } catch (n8nError) {
+        // The lead is already saved, so don't report the submission as failed.
+        console.error("Failed to notify n8n:", n8nError);
+      }
+    } else {
+      console.error("Missing N8N_WEBHOOK_URL or N8N_WEBHOOK_SECRET");
+    }
+
+    // 5. Return success
     return NextResponse.json(
       {
         message: "Free trial submitted successfully",
@@ -32,6 +69,7 @@ export async function POST(request: Request) {
     );
   }
 }
+
 
 export async function GET(request: Request) {
   try {
